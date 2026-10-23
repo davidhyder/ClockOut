@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Install Clock Out on iPhone</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#17140f">
+<style>
+  :root{
+    --bg:#17140f; --surface:#211c15; --ink:#f1ead8; --muted:#9a9079;
+    --line:#3a3326; --accent:#e0893f; --accent-ink:#1b1309;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 'Inter',system-ui,-apple-system,sans-serif;
+    padding:env(safe-area-inset-top,0px) max(16px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(16px,env(safe-area-inset-left,0px));
+  }
+  .wrap{max-width:560px;margin:0 auto;padding:28px 0 48px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+  header img{width:64px;height:64px;border-radius:15px}
+  h1{font-family:'Oswald',system-ui,sans-serif;text-transform:uppercase;font-size:24px;letter-spacing:.02em;margin:0;line-height:1.15}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+  .open{
+    display:block;text-align:center;text-decoration:none;font-weight:600;font-size:16px;
+    background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:13px 16px;margin:0 0 22px;
+  }
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  h2{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+  ol{margin:0;padding-left:20px}
+  li{margin:6px 0}
+  b{color:var(--ink)}
+  .k{display:inline-block;border:1px solid var(--line);border-radius:5px;padding:0 6px;font-size:13px;background:var(--bg);white-space:nowrap}
+  ul{margin:0;padding-left:20px}
+  .note{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="apple-touch-icon.png" alt="">
+    <div>
+      <h1>Clock Out on your iPhone</h1>
+      <p class="sub">Install it once and it opens full screen from its own icon, like any other app.</p>
+    </div>
+  </header>
+
+  <a class="open" href="./">Open Clock Out</a>
+
+  <div class="card">
+    <h2>Install (about a minute)</h2>
+    <ol>
+      <li>Use <b>Safari</b>. Tap <b>Open Clock Out</b> above so the calculator itself is on screen.</li>
+      <li>Open the <b>Share</b> menu:
+        <ul>
+          <li>iOS 26: tap <span class="k">•••</span> at the bottom right, then <b>Share</b>.</li>
+          <li>Older iOS: tap the <b>Share</b> button <span class="k">⬆︎</span> (a square with an arrow) in the bottom bar.</li>
+        </ul>
+      </li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+      <li>If you see <b>Open as Web App</b>, leave it switched on.</li>
+      <li>The name shows as <b>Clock Out</b>. Tap <b>Add</b>.</li>
+    </ol>
+    <p class="note">The clock icon is now on your home screen. Open it from there from now on.</p>
+  </div>
+
+  <div class="card">
+    <h2>Using it</h2>
+    <ul>
+      <li>Tap a time to open the keypad. Type the digits; the last two are the minutes (705 = 7:05, 105 = 1:05, 1130 = 11:30). Tap <b>AM</b> or <b>PM</b> to save and move to the next punch.</li>
+      <li>"Clock out at" shows when to leave to hit your target hours. Hours show as h:mm and as decimals (8:15 · 8.25).</li>
+      <li>Tap into a day to outline it; the top button then clears just that day. <b>Clear all</b> erases everything.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Good to know</h2>
+    <ul>
+      <li>Your punches are saved <b>only on your phone</b>. Nothing is sent anywhere.</li>
+      <li>Removing the icon from your home screen also erases its saved punches.</li>
+      <li>After the first open it works without a connection, and it picks up updates automatically when you're online.</li>
+      <li>Chrome on iPhone can also add it: tap <b>Share</b> in the address bar, then <b>Add to Home Screen</b>. Safari is the most reliable.</li>
+    </ul>
+  </div>
+</div>
+</body>
+</html>

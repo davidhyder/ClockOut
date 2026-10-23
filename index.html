@@ -1,0 +1,903 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Clock Out Calculator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Clock Out">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<script>document.documentElement.setAttribute("data-theme", "dark"); /* always the dark theme */</script>
+<meta name="theme-color" content="#211c14">
+<style>
+  /* Layout: a punch-card ledger. A ruled week table above a brass-plate summary rail below, stamped day badges, tabular time columns. */
+  :root{
+    --bg:#f3efe4;
+    --surface:#fffdf7;
+    --ink:#211c14;
+    --muted:#7a7262;
+    --line:#ddd4bf;
+    --accent:#b5651d;
+    --accent-ink:#fff8ee;
+    --good:#3f6b3f;
+    --warn:#9c4a1f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#17140f;
+      --surface:#211c15;
+      --ink:#f1ead8;
+      --muted:#9a9079;
+      --line:#3a3326;
+      --accent:#e0893f;
+      --accent-ink:#1b1309;
+      --good:#7ab57a;
+      --warn:#e08a5c;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#17140f;
+    --surface:#211c15;
+    --ink:#f1ead8;
+    --muted:#9a9079;
+    --line:#3a3326;
+    --accent:#e0893f;
+    --accent-ink:#1b1309;
+    --good:#7ab57a;
+    --warn:#e08a5c;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    padding-left:max(16px, env(safe-area-inset-left,0px));
+    padding-right:max(16px, env(safe-area-inset-right,0px));
+  }
+  .wrap{max-width:720px;margin:0 auto;padding-block:28px 48px}
+
+  h1,h2,.label-caps{font-family:'Oswald',system-ui,sans-serif;text-transform:uppercase}
+  .mono,input[type=time],.hours{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+  header{display:flex;flex-direction:column;gap:4px;margin-bottom:22px}
+  h1{font-size:28px;letter-spacing:.02em;margin:0;line-height:1.1}
+  .sub{color:var(--muted);font-size:13px;margin:0}
+  .sample-note{
+    margin-top:10px;font-size:12px;color:var(--accent);
+    border:1px dashed var(--accent);border-radius:6px;padding:8px 10px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .sample-note button{
+    font:inherit;color:var(--accent);background:none;border:1px solid var(--accent);
+    border-radius:4px;padding:3px 8px;cursor:pointer;white-space:nowrap;
+  }
+
+  /* Stays at the top while the days scroll under it. */
+  .settings{
+    display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;background:var(--surface);
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:20px;
+    position:sticky;top:0;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,.10);
+  }
+  .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px}
+  .field label{font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+  .clear-week{
+    font:inherit;font-size:13px;color:var(--warn);background:none;border:1px solid var(--warn);
+    border-radius:6px;padding:7px 12px;cursor:pointer;white-space:nowrap;flex:0 0 auto;
+    transition:background-color .15s,color .15s;
+  }
+  .clear-week.armed{background:var(--warn);color:var(--surface)}
+  .clear-week:disabled{opacity:.45;cursor:default}
+  .clear-actions{display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap}
+  input[type=date],input[type=number]{
+    font:inherit;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--ink);
+    border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%;
+  }
+
+  .week{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+  .day{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;min-width:0;
+  }
+  .day.open,.day.selected{border-color:var(--accent)}
+  .day.selected{box-shadow:0 0 0 1px var(--accent)}
+  .day-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .day-name{font-size:15px;font-weight:600}
+  .day-date{font-size:12px;color:var(--muted)}
+  .day-badge{
+    font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    border-radius:999px;padding:2px 8px;border:1px solid var(--accent);color:var(--accent);
+  }
+  .punches{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .punch label{display:block;font-size:10px;letter-spacing:.05em;color:var(--muted);text-transform:uppercase;margin-bottom:3px}
+  .time-group{
+    display:flex;align-items:stretch;gap:0;background:var(--bg);border:1px solid var(--line);
+    border-radius:6px;overflow:hidden;min-width:0;
+  }
+  .time-group:focus-within{border-color:var(--accent)}
+  .time-group.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .t-box{display:flex;align-items:stretch;flex:1 1 0;min-width:0;cursor:text;outline:none}
+  .t-hh,.t-mm{
+    flex:1 1 0;min-width:0;color:var(--ink);text-align:center;padding:7px 0;font-size:14px;
+  }
+  .t-hh.ph,.t-mm.ph{color:var(--muted);opacity:.6}
+  .t-sep{display:flex;align-items:center;color:var(--muted);padding:0 1px}
+  .t-ampm{
+    flex:0 0 auto;background:var(--surface);color:var(--muted);border:0;border-left:1px solid var(--line);
+    font:inherit;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.03em;
+    padding:0 6px;cursor:pointer;
+  }
+  .t-ampm.set{color:var(--accent);font-weight:600}
+  .t-ampm:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+  /* Touch keypad: opens when a time is tapped on a phone. */
+  .pad{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);
+    border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(0,0,0,.18);
+    padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));
+  }
+  .pad-inner{max-width:480px;margin:0 auto}
+  .pad-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+  .pad-label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  .pad-time{font-size:22px;font-weight:600;color:var(--ink)}
+  .pad-keys{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+  .pad-keys button{
+    font:inherit;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:20px;height:48px;
+    border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+    cursor:pointer;touch-action:manipulation;
+  }
+  .pad-keys .k-ap{color:var(--accent);border-color:var(--accent);font-size:16px;font-weight:600}
+  .pad-keys .k-ap.sel{background:var(--accent);color:var(--accent-ink)}
+  .pad-keys .k-fn{font-family:'Inter',system-ui,sans-serif;font-size:14px;color:var(--muted)}
+  .pad-keys .k-done{
+    grid-column:span 2;background:var(--ink);color:var(--accent-ink);border-color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;font-size:15px;
+  }
+  body.pad-open{padding-bottom:300px}
+  .day-hours{
+    margin-top:10px;padding-top:8px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;font-size:13px;color:var(--muted);
+  }
+  .day-hours b{color:var(--ink);font-weight:600}
+
+  .rail{
+    background:var(--ink);color:var(--accent-ink);border-radius:12px;padding:18px 18px 20px;
+  }
+  :root[data-theme="light"] .rail, :root:not([data-theme="dark"]) .rail{}
+  .rail .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+  .stat{min-width:0}
+  .stat .k{font-size:10px;letter-spacing:.07em;text-transform:uppercase;opacity:.65;margin-bottom:3px}
+  .stat .v{font-size:22px;font-weight:600}
+  .stat .v.small{font-size:16px}
+  .stat .dec{font-size:12px;opacity:.7;margin-top:2px}
+  .headline{
+    grid-column:1/-1;border-top:1px solid rgba(255,255,255,.18);margin-top:4px;padding-top:14px;
+    display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  }
+  .headline .k{font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.7}
+  .headline .v{font-size:32px;font-family:'Oswald',system-ui,sans-serif}
+  .headline .v.good{color:var(--good)}
+  .headline .v.warn{color:var(--warn)}
+
+  footer{margin-top:26px;font-size:12px;color:var(--muted);line-height:1.6}
+  footer ol{margin:6px 0 0;padding-left:18px}
+
+  @media (max-width:480px){
+    /* Compact top card: date + target on one row, the two buttons on the next. */
+    .settings{padding:10px 12px;gap:8px 10px}
+    .settings .field{min-width:0;flex:1 1 30%}
+    .settings .field:first-child{flex:1 1 55%}
+    .settings input[type=date],.settings input[type=number]{padding:5px 8px}
+    .clear-actions{flex:1 1 100%}
+    .clear-actions .clear-week{flex:1 1 0;padding:6px 8px}
+    .punches{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .rail .grid{grid-template-columns:1fr 1fr}
+    .headline .v{font-size:26px}
+  }
+</style>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap">
+
+<div class="wrap">
+  <header>
+    <h1>Clock Out Calculator</h1>
+    <p class="sub">Enter your punches. It tells you what time to clock out to hit your target.</p>
+    <div class="sample-note" id="sampleNote" hidden>
+      Loaded with an example week so you can see it work. Enter your own punches below, or
+      <button id="clearSample" type="button">clear the example</button>.
+    </div>
+  </header>
+
+  <div class="settings">
+    <div class="field">
+      <label for="weekStart">Week starting (Monday)</label>
+      <input type="date" id="weekStart">
+    </div>
+    <div class="field">
+      <label for="target">Target hours</label>
+      <input type="number" id="target" min="0" step="0.25">
+    </div>
+    <div class="clear-actions">
+      <button type="button" class="clear-week" id="clearDay" disabled>Clear day</button>
+      <button type="button" class="clear-week" id="clearAll">Clear all</button>
+    </div>
+  </div>
+
+  <div class="week" id="week"></div>
+
+  <div class="rail">
+    <div class="grid">
+      <div class="stat">
+        <div class="k">Logged</div>
+        <div class="v mono" id="totalHours">0:00</div>
+        <div class="dec mono" id="totalHoursDec">0.00 hrs</div>
+      </div>
+      <div class="stat">
+        <div class="k">Remaining to target</div>
+        <div class="v mono" id="remaining">0:00</div>
+        <div class="dec mono" id="remainingDec">0.00 hrs</div>
+      </div>
+      <div class="stat">
+        <div class="k">Open day</div>
+        <div class="v small" id="openDay">None</div>
+      </div>
+      <div class="stat">
+        <div class="k">Overtime</div>
+        <div class="v mono small" id="overtime">0:00</div>
+        <div class="dec mono" id="overtimeDec">0.00 hrs</div>
+      </div>
+      <div class="headline">
+        <div class="k">Clock out at</div>
+        <div class="v mono" id="clockOutAt">&mdash;</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <strong>How it works</strong>
+    <ol>
+      <li>Set your week start and target hours (defaults to 40). Each week's punches are saved separately: pick a different Monday to see that week.</li>
+      <li>Enter Clock In, Lunch Out and Lunch In as you punch them. Type the time as digits; the last two are the minutes (705 = 7:05, 105 = 1:05, 1130 = 11:30). Then pick AM or PM: a time counts only once its AM/PM is orange. On a phone, tap a time to open the keypad; tapping AM or PM saves it and moves to the next punch. On a keyboard, press A or P, or Tab to the AM/PM button and press Space to toggle.</li>
+      <li>Leave today's Clock Out blank. "Clock out at" shows the exact time that brings the week to your target.</li>
+      <li>If you have not taken lunch yet, that time assumes no further lunch. Add your lunch length to it if you still plan to take one.</li>
+      <li>Hours show as h:mm and as decimal hours (8:15 · 8.25), the way Paycom shows them.</li>
+      <li>Click or tap into a day to outline it. The first clear button then names that day (e.g. "Clear Monday") and empties only that day. Clear all erases everything. Both ask you to tap again to confirm.</li>
+    </ol>
+  </footer>
+</div>
+
+<div class="pad" id="pad" hidden>
+  <div class="pad-inner">
+    <div class="pad-head">
+      <span class="pad-label" id="padLabel"></span>
+      <span class="pad-time mono" id="padTime"></span>
+    </div>
+    <div class="pad-keys" id="padKeys">
+      <button type="button" data-k="1">1</button>
+      <button type="button" data-k="2">2</button>
+      <button type="button" data-k="3">3</button>
+      <button type="button" class="k-ap" data-k="AM">AM</button>
+      <button type="button" data-k="4">4</button>
+      <button type="button" data-k="5">5</button>
+      <button type="button" data-k="6">6</button>
+      <button type="button" class="k-ap" data-k="PM">PM</button>
+      <button type="button" data-k="7">7</button>
+      <button type="button" data-k="8">8</button>
+      <button type="button" data-k="9">9</button>
+      <button type="button" class="k-fn" data-k="back" aria-label="Backspace">&#9003;</button>
+      <button type="button" class="k-fn" data-k="clear">Clear</button>
+      <button type="button" data-k="0">0</button>
+      <button type="button" class="k-done" data-k="done">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+  var STORE_KEY = "clockOutCalc.v1";
+
+  var SAMPLE = {
+    weekStart: "2026-09-14",
+    target: 40,
+    days: [
+      {in:"",      lunchOut:"",      lunchIn:"",      out:""},
+      {in:"06:57", lunchOut:"14:25", lunchIn:"14:55", out:"17:33"},
+      {in:"06:56", lunchOut:"14:06", lunchIn:"14:36", out:"17:33"},
+      {in:"06:55", lunchOut:"13:52", lunchIn:"14:22", out:"17:30"},
+      {in:"06:58", lunchOut:"12:12", lunchIn:"12:42", out:""}
+    ]
+  };
+
+  // Android app: AndroidStore (MainActivity) writes to disk immediately;
+  // localStorage stays as a fallback so the page still works in a browser.
+  var nativeStore = window.AndroidStore || null;
+
+  function load(){
+    try{
+      var raw = (nativeStore && nativeStore.load()) || localStorage.getItem(STORE_KEY);
+      if(raw) return {data: JSON.parse(raw), sample:false};
+    }catch(e){}
+    return {data: SAMPLE, sample:true};
+  }
+  // Stored shape: {weekStart, target, weeks: {"YYYY-MM-DD" (Monday): days}}.
+  // state.days is the shown week's array inside state.weeks. Weeks with no
+  // punches are dropped when saving.
+  function save(state){
+    var weeks = {};
+    Object.keys(state.weeks).forEach(function(k){
+      var hasPunch = state.weeks[k].some(function(d){ return d.in || d.lunchOut || d.lunchIn || d.out; });
+      if(hasPunch) weeks[k] = state.weeks[k];
+    });
+    var json = JSON.stringify({weekStart: state.weekStart, target: state.target, weeks: weeks});
+    try{ if(nativeStore) nativeStore.save(json); }catch(e){}
+    try{ localStorage.setItem(STORE_KEY, json); }catch(e){}
+  }
+
+  var state = load().data;
+  var isSample = load().sample;
+
+  function emptyDays(){
+    return DAYS.map(function(){ return {in:"",lunchOut:"",lunchIn:"",out:""}; });
+  }
+  // Local date as YYYY-MM-DD (toISOString would give tomorrow's date in the evening).
+  function isoLocal(d){
+    return String(d.getFullYear()).padStart(4,"0") + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+  function mondayOf(d){
+    var day = d.getDay();
+    d.setDate(d.getDate() + ((day === 0 ? -6 : 1) - day));
+    return isoLocal(d);
+  }
+  function thisMonday(){ return mondayOf(new Date()); }
+  // Points state.days at the stored punches for state.weekStart.
+  function showWeek(){
+    if(!state.weeks[state.weekStart]) state.weeks[state.weekStart] = emptyDays();
+    state.days = state.weeks[state.weekStart];
+  }
+
+  // v1.2 test builds could save a half-typed date such as "2-10-17".
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(state.weekStart || "")) state.weekStart = thisMonday();
+  if(!state.target && state.target !== 0) state.target = 40;
+  if(!state.weeks){
+    // Older saves (and the example) hold a single week in state.days.
+    state.weeks = {};
+    if(state.days) state.weeks[state.weekStart] = state.days;
+  }
+  showWeek();
+
+  var weekStartEl = document.getElementById("weekStart");
+  var targetEl = document.getElementById("target");
+  var weekEl = document.getElementById("week");
+  var sampleNote = document.getElementById("sampleNote");
+  var clearSampleBtn = document.getElementById("clearSample");
+
+  sampleNote.hidden = !isSample;
+  clearSampleBtn.addEventListener("click", function(){
+    state = {weekStart: thisMonday(), target: 40, weeks: {}};
+    showWeek();
+    isSample = false;
+    sampleNote.hidden = true;
+    render();
+    save(state);
+  });
+
+  function toMinutes(hhmm){
+    if(!hhmm) return null;
+    var p = hhmm.split(":");
+    return (parseInt(p[0],10) * 60) + parseInt(p[1],10);
+  }
+  function fromMinutes(mins){
+    mins = Math.round(((mins % 1440) + 1440) % 1440);
+    var h = Math.floor(mins/60), m = mins%60;
+    return String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+  }
+  function to12h(hhmm){
+    var p = hhmm.split(":");
+    var h = parseInt(p[0],10), m = p[1];
+    var suffix = h >= 12 ? "PM" : "AM";
+    var h12 = h % 12; if(h12 === 0) h12 = 12;
+    return h12 + ":" + m + " " + suffix;
+  }
+  function hoursLabel(totalMinutes){
+    var sign = totalMinutes < 0 ? "-" : "";
+    totalMinutes = Math.abs(Math.round(totalMinutes));
+    var h = Math.floor(totalMinutes/60), m = totalMinutes%60;
+    return sign + h + ":" + String(m).padStart(2,"0");
+  }
+  // Decimal hours to 2 places, the way Paycom shows them (8:15 -> 8.25).
+  function decimalLabel(totalMinutes){
+    return (Math.round(totalMinutes) / 60).toFixed(2);
+  }
+  function addDays(iso, n){
+    var d = new Date(iso + "T00:00:00");
+    d.setDate(d.getDate() + n);
+    return d;
+  }
+  function fmtDate(d){
+    return d.toLocaleDateString(undefined, {month:"short", day:"numeric"});
+  }
+
+  function dayMinutes(d){
+    var ci = toMinutes(d.in), lo = toMinutes(d.lunchOut), li = toMinutes(d.lunchIn), co = toMinutes(d.out);
+    if(ci === null) return 0;
+    if(co === null){
+      if(lo !== null) return Math.max(0, lo - ci);
+      return 0;
+    }
+    if(lo === null) return Math.max(0, co - ci);
+    if(li === null) return Math.max(0, lo - ci);
+    return Math.max(0, lo - ci) + Math.max(0, co - li);
+  }
+
+  function findOpenDayIndex(){
+    var idx = -1;
+    for(var i=0;i<state.days.length;i++){
+      var d = state.days[i];
+      if(d.in && !d.out) idx = i;
+    }
+    return idx;
+  }
+
+  var FIELD_ORDER = ["in","lunchOut","lunchIn","out"];
+  var dayRefs = [];
+  var selectedDay = -1; // index into DAYS of the outlined day, -1 for none
+
+  function fieldId(day, key){ return "d"+day+"_"+key; }
+
+  // Times are typed as digits that fill in like a microwave clock: the last
+  // two digits are the minutes ("705" = 7:05, "105" = 1:05, "1130" = 11:30).
+  function parseDigits(s){
+    if(s.length === 3) return {h:+s.charAt(0), m:+s.slice(1)};
+    if(s.length === 4) return {h:+s.slice(0,2), m:+s.slice(2)};
+    return null;
+  }
+  function validDigits(s){
+    var t = parseDigits(s);
+    return !!t && t.h >= 1 && t.h <= 12 && t.m <= 59;
+  }
+  // True if some longer digit string starting with s is a valid time.
+  function canGrow(s){
+    if(s.length >= 4) return false;
+    for(var d = 0; d < 10; d++){ if(validDigits(s + d) || canGrow(s + d)) return true; }
+    return false;
+  }
+  // One or two digits on their own count as a whole hour when entry ends ("7" = 7:00).
+  function hourOnly(s){
+    var h = +s;
+    return (s.length === 1 || s.length === 2) && h >= 1 && h <= 12 ? {h:h, m:0} : null;
+  }
+  function storedToTime(v){
+    if(!v) return null;
+    var p = v.split(":"), h = parseInt(p[0],10);
+    return {h:(h % 12) || 12, m:parseInt(p[1],10), ap: h >= 12 ? "PM" : "AM"};
+  }
+  function isTouch(pointerType){ return pointerType === "touch" || pointerType === "pen"; }
+
+  // One punch: a focusable time box (hours : minutes) plus an AM/PM button.
+  // Keeps the stored value as a 24h "HH:MM" string, or "" until both a time
+  // and AM/PM are set, same as the rest of the app expects.
+  // Keyboard: type digits, then A or P (sets it and moves on), or Tab to the
+  // AM/PM button and press Space to toggle. Touch: a tap opens the keypad.
+  function createTimeGroup(id, label, initialValue, onChange, onAdvanceOut){
+    var wrap = document.createElement("div");
+    wrap.className = "time-group";
+
+    var box = document.createElement("div");
+    box.className = "t-box"; box.id = id + "_box"; box.tabIndex = 0;
+    box.setAttribute("role", "textbox"); box.setAttribute("aria-label", label);
+    var hh = document.createElement("span"); hh.className = "t-hh";
+    var sep = document.createElement("span"); sep.className = "t-sep"; sep.textContent = ":";
+    var mm = document.createElement("span"); mm.className = "t-mm";
+    box.appendChild(hh); box.appendChild(sep); box.appendChild(mm);
+
+    var ap = document.createElement("button");
+    ap.type = "button"; ap.className = "t-ampm"; ap.id = id + "_ap";
+    ap.setAttribute("aria-label", label + " AM or PM");
+
+    wrap.appendChild(box); wrap.appendChild(ap);
+
+    var init = storedToTime(initialValue);
+    var time = init ? {h:init.h, m:init.m} : null;
+    var mer = init ? init.ap : "";   // "" = grey placeholder, not chosen yet
+    var buf = null;                  // digits typed since editing began; null = not editing
+    var before = null;               // time when editing began, kept if the entry is unusable
+
+    var api = {wrap:wrap, box:box, ap:ap};
+
+    function show(){
+      var hText, mText;
+      if(buf){
+        hText = buf.length <= 2 ? buf : buf.slice(0, -2);
+        mText = buf.length <= 2 ? "--" : buf.slice(-2);
+      } else if(time){
+        hText = String(time.h).padStart(2,"0"); mText = String(time.m).padStart(2,"0");
+      } else {
+        hText = "--"; mText = "--";
+      }
+      hh.textContent = hText; mm.textContent = mText;
+      hh.classList.toggle("ph", hText === "--"); mm.classList.toggle("ph", mText === "--");
+      ap.textContent = mer || "AM";
+      ap.classList.toggle("set", !!mer);
+      if(padCur === api) updatePad();
+    }
+    function emit(){
+      if(time && mer){
+        var h24 = (time.h % 12) + (mer === "PM" ? 12 : 0);
+        onChange(String(h24).padStart(2,"0") + ":" + String(time.m).padStart(2,"0"));
+      } else {
+        onChange("");
+      }
+    }
+    function begin(){ if(buf === null){ buf = ""; before = time; } }
+    function finish(){
+      if(buf === null) return;
+      if(buf && !validDigits(buf)){ time = hourOnly(buf) || before; emit(); }
+      buf = null; show();
+    }
+    // Returns true when the time is complete and no further digit could fit.
+    function typeDigit(d){
+      begin();
+      if(!validDigits(buf + d) && !canGrow(buf + d)){
+        if(validDigits(buf) && !canGrow(buf)) buf = "";   // full already: start over with this digit
+        else return false;
+        if(!validDigits(d) && !canGrow(d)) return false;
+      }
+      buf += d;
+      time = validDigits(buf) ? parseDigits(buf) : null;
+      emit(); show();
+      return validDigits(buf) && !canGrow(buf);
+    }
+    function backspace(){
+      if(!buf){   // nothing typed yet: edit the saved time instead
+        before = time;
+        buf = time ? String(time.h) + String(time.m).padStart(2,"0") : "";
+      }
+      buf = buf.slice(0, -1);
+      time = validDigits(buf) ? parseDigits(buf) : null;
+      emit(); show();
+    }
+    function clear(){ buf = null; time = null; mer = ""; emit(); show(); }
+    function setMer(v){ finish(); mer = v; emit(); show(); }
+    // A grey button is only a placeholder: the first press sets AM, later presses toggle.
+    function toggleMer(){ setMer(!mer ? "AM" : (mer === "PM" ? "AM" : "PM")); }
+
+    // Keyboard and mouse
+    box.addEventListener("focus", function(){ if(padCur !== api) begin(); });
+    box.addEventListener("blur", function(){ if(padCur !== api) finish(); });
+    box.addEventListener("keydown", function(e){
+      var k = e.key;
+      if(/^[0-9]$/.test(k)){ e.preventDefault(); if(typeDigit(k)) ap.focus(); }
+      else if(k === "Backspace"){ e.preventDefault(); backspace(); }
+      else if(k === "Delete"){ e.preventDefault(); clear(); }
+      else if(k === "a" || k === "A"){ e.preventDefault(); setMer("AM"); onAdvanceOut(); }
+      else if(k === "p" || k === "P"){ e.preventDefault(); setMer("PM"); onAdvanceOut(); }
+      else if(k === " "){ e.preventDefault(); }
+    });
+    // Space/Enter toggle and stay on the button (Tab moves on); A or P set it and move on.
+    ap.addEventListener("keydown", function(e){
+      var k = e.key.toLowerCase();
+      if(k === " " || k === "enter"){ e.preventDefault(); toggleMer(); }
+      else if(k === "a"){ e.preventDefault(); setMer("AM"); onAdvanceOut(); }
+      else if(k === "p"){ e.preventDefault(); setMer("PM"); onAdvanceOut(); }
+    });
+
+    // Touch opens the keypad; a mouse click on AM/PM toggles it in place.
+    var lastPointer = "";
+    wrap.addEventListener("pointerdown", function(e){ lastPointer = e.pointerType; });
+    box.addEventListener("click", function(){ if(isTouch(lastPointer)) openPad(api); });
+    ap.addEventListener("click", function(){
+      if(isTouch(lastPointer)) openPad(api);
+      else toggleMer();
+    });
+
+    api.begin = begin; api.finish = finish; api.typeDigit = typeDigit;
+    api.backspace = backspace; api.clear = clear; api.setMer = setMer;
+    api.mer = function(){ return mer; };
+    api.display = function(){ return hh.textContent + ":" + mm.textContent; };
+    show();
+    return api;
+  }
+
+  function nextGroup(dayIdx, key){
+    var fi = FIELD_ORDER.indexOf(key);
+    var nd = fi < FIELD_ORDER.length - 1 ? dayIdx : dayIdx + 1;
+    var nk = FIELD_ORDER[(fi + 1) % FIELD_ORDER.length];
+    return nd < DAYS.length ? dayRefs[nd].inputs[nk] : null;
+  }
+  function advanceFocus(dayIdx, key){
+    var g = nextGroup(dayIdx, key);
+    if(g) g.box.focus();
+  }
+
+  // ---- Touch keypad ----
+  var padEl = document.getElementById("pad");
+  var padCur = null;   // the punch the keypad is entering
+  function openPad(g){
+    if(padCur && padCur !== g) padCur.finish();
+    padCur = g;
+    g.begin();
+    g.box.focus({preventScroll: true});   // so only this punch shows the focus ring
+    padEl.hidden = false;
+    document.body.classList.add("pad-open");
+    selectDay(g.day);
+    document.querySelectorAll(".time-group.active").forEach(function(el){ el.classList.remove("active"); });
+    g.wrap.classList.add("active");
+    updatePad();
+    revealGroup(g);
+  }
+  // Returns true if it was open (the Android Back button uses this).
+  function closePad(){
+    if(padEl.hidden) return false;
+    var g = padCur;
+    padCur = null;
+    if(g){ g.finish(); g.wrap.classList.remove("active"); g.box.blur(); }
+    padEl.hidden = true;
+    document.body.classList.remove("pad-open");
+    return true;
+  }
+  window.closeKeypad = closePad;
+  function updatePad(){
+    if(!padCur) return;
+    document.getElementById("padLabel").textContent = padCur.padLabel;
+    document.getElementById("padTime").textContent = padCur.display().replace(/--/g, "––");
+    padEl.querySelectorAll(".k-ap").forEach(function(b){
+      b.classList.toggle("sel", b.getAttribute("data-k") === padCur.mer());
+    });
+  }
+  // Scroll just enough to keep the punch between the top card and the keypad.
+  function revealGroup(g){
+    var r = g.wrap.getBoundingClientRect();
+    var top = document.querySelector(".settings").getBoundingClientRect().bottom + 8;
+    var bottom = window.innerHeight - padEl.offsetHeight - 8;
+    if(r.top < top) window.scrollBy({top: r.top - top, behavior: "smooth"});
+    else if(r.bottom > bottom) window.scrollBy({top: r.bottom - bottom, behavior: "smooth"});
+  }
+  // Keep focus where it is when keypad buttons are pressed.
+  padEl.addEventListener("pointerdown", function(e){ e.preventDefault(); });
+  padEl.addEventListener("mousedown", function(e){ e.preventDefault(); });
+  document.getElementById("padKeys").addEventListener("click", function(e){
+    var b = e.target.closest("button");
+    if(!b || !padCur) return;
+    var k = b.getAttribute("data-k");
+    if(/^[0-9]$/.test(k)) padCur.typeDigit(k);
+    else if(k === "back") padCur.backspace();
+    else if(k === "clear") padCur.clear();
+    else if(k === "done") closePad();
+    else if(k === "AM" || k === "PM"){
+      padCur.setMer(k);
+      var next = nextGroup(padCur.day, padCur.key);
+      if(next) openPad(next); else closePad();
+    }
+  });
+  // Tapping anywhere else (not a punch, not the keypad) closes it.
+  document.addEventListener("pointerdown", function(e){
+    if(!padEl.hidden && !padEl.contains(e.target) && !e.target.closest(".time-group")) closePad();
+  });
+
+  function buildWeek(){
+    closePad();
+    weekEl.innerHTML = "";
+    dayRefs = [];
+    DAYS.forEach(function(name, i){
+      var d = state.days[i];
+
+      var card = document.createElement("div");
+      card.className = "day";
+      card.classList.toggle("selected", i === selectedDay);
+      card.addEventListener("focusin", function(){ selectDay(i); });
+      card.addEventListener("click", function(){ selectDay(i); });
+
+      var top = document.createElement("div");
+      top.className = "day-top";
+      var left = document.createElement("div");
+      var dateSpan = document.createElement("span");
+      dateSpan.className = "day-date";
+      left.innerHTML = '<span class="day-name">'+name+'</span> ';
+      left.appendChild(dateSpan);
+      top.appendChild(left);
+      var badge = document.createElement("span");
+      badge.className = "day-badge";
+      badge.textContent = "Open";
+      badge.hidden = true;
+      top.appendChild(badge);
+      card.appendChild(top);
+
+      var punches = document.createElement("div");
+      punches.className = "punches";
+      var inputs = {};
+      FIELD_ORDER.forEach(function(key, fi){
+        var label = ({in:"Clock In", lunchOut:"Lunch Out", lunchIn:"Lunch In", out:"Clock Out"})[key];
+        var p = document.createElement("div");
+        p.className = "punch";
+        var id = fieldId(i, key);
+        p.innerHTML = '<label>'+label+'</label>';
+        var group = createTimeGroup(id, name + " " + label, d[key] || "", function(val){
+          d[key] = val;
+          save(state);
+          updateAll();
+        }, function(){
+          advanceFocus(i, key);
+        });
+        group.day = i; group.key = key; group.padLabel = name + " · " + label;
+        p.appendChild(group.wrap);
+        punches.appendChild(p);
+        inputs[key] = group;
+      });
+      card.appendChild(punches);
+
+      var dh = document.createElement("div");
+      dh.className = "day-hours";
+      dh.innerHTML = "<span>Hours</span>";
+      var hoursEl = document.createElement("b");
+      hoursEl.className = "mono";
+      dh.appendChild(hoursEl);
+      card.appendChild(dh);
+
+      weekEl.appendChild(card);
+      dayRefs.push({card:card, badge:badge, dateEl:dateSpan, hoursEl:hoursEl, inputs:inputs});
+    });
+    updateDates();
+    updateAll();
+  }
+
+  function updateDates(){
+    dayRefs.forEach(function(ref, i){
+      ref.dateEl.textContent = fmtDate(addDays(state.weekStart, i));
+    });
+  }
+
+  function updateAll(){
+    var openIdx = findOpenDayIndex();
+    dayRefs.forEach(function(ref, i){
+      var d = state.days[i];
+      var mins = dayMinutes(d);
+      ref.hoursEl.textContent = hoursLabel(mins) + " · " + decimalLabel(mins);
+      ref.card.classList.toggle("open", i === openIdx);
+      ref.badge.hidden = i !== openIdx;
+    });
+    computeSummary();
+  }
+
+  function targetLabel(total, targetMins){
+    return Math.round(total) > Math.round(targetMins) ? "Over target" : "Target met";
+  }
+
+  function computeSummary(){
+    var targetMins = (parseFloat(targetEl.value || state.target) || 0) * 60;
+    var total = 0;
+    state.days.forEach(function(d){ total += dayMinutes(d); });
+    var remaining = Math.max(0, targetMins - total);
+    var overtime = Math.max(0, total - targetMins);
+
+    document.getElementById("totalHours").textContent = hoursLabel(total);
+    document.getElementById("remaining").textContent = hoursLabel(remaining);
+    document.getElementById("overtime").textContent = hoursLabel(overtime);
+    document.getElementById("totalHoursDec").textContent = decimalLabel(total) + " hrs";
+    document.getElementById("remainingDec").textContent = decimalLabel(remaining) + " hrs";
+    document.getElementById("overtimeDec").textContent = decimalLabel(overtime) + " hrs";
+
+    var openIdx = findOpenDayIndex();
+    var openDayEl = document.getElementById("openDay");
+    var clockOutEl = document.getElementById("clockOutAt");
+    clockOutEl.classList.remove("good","warn");
+
+    if(openIdx === -1){
+      openDayEl.textContent = "None";
+      if(total >= targetMins){
+        clockOutEl.textContent = targetLabel(total, targetMins);
+        clockOutEl.classList.add("good");
+      } else {
+        clockOutEl.textContent = total > 0 ? "Under target" : "No open day";
+      }
+      return;
+    }
+
+    openDayEl.textContent = DAYS[openIdx];
+    var d = state.days[openIdx];
+    var base;
+    if(!d.lunchOut){
+      base = toMinutes(d.in);
+    } else if(!d.lunchIn){
+      clockOutEl.textContent = "Enter Lunch In";
+      return;
+    } else {
+      base = toMinutes(d.lunchIn);
+    }
+    if(remaining <= 0){
+      clockOutEl.textContent = targetLabel(total, targetMins);
+      clockOutEl.classList.add("good");
+      return;
+    }
+    var outMins = base + remaining;
+    clockOutEl.textContent = to12h(fromMinutes(outMins));
+  }
+
+  function render(){
+    weekStartEl.value = state.weekStart;
+    targetEl.value = state.target;
+    buildWeek();
+  }
+
+  // Typing a date fires "change" after most digits (10/19/2026 passes through
+  // 01/19, 10/01, ...). Follow along with the week shown, but don't rewrite the
+  // box while it has focus, or the typing gets scrambled. Snap the box to the
+  // week's Monday once focus leaves it.
+  weekStartEl.addEventListener("change", function(){
+    if(!weekStartEl.value) return;
+    var ws = mondayOf(new Date(weekStartEl.value + "T00:00:00"));
+    if(ws !== state.weekStart){
+      state.weekStart = ws;
+      showWeek();
+      save(state);
+      buildWeek();
+    }
+    if(document.activeElement !== weekStartEl) weekStartEl.value = state.weekStart;
+  });
+  weekStartEl.addEventListener("blur", function(){
+    weekStartEl.value = state.weekStart;
+  });
+  targetEl.addEventListener("input", function(){
+    state.target = parseFloat(targetEl.value) || 0;
+    save(state);
+    computeSummary();
+  });
+
+  // The day last clicked or tabbed into stays outlined (it doesn't depend on
+  // focus, which moves to the clear button when you click it).
+  var clearDayBtn = document.getElementById("clearDay");
+  function clearDayLabel(){ return selectedDay === -1 ? "Clear day" : "Clear " + DAYS[selectedDay]; }
+  function selectDay(i){
+    selectedDay = i;
+    dayRefs.forEach(function(ref, j){ ref.card.classList.toggle("selected", j === i); });
+    clearDayBtn.disabled = false;
+    if(!clearDayBtn.classList.contains("armed")) clearDayBtn.textContent = clearDayLabel();
+  }
+
+  // First tap arms the button ("Tap to confirm"); a second tap within 3 s runs it.
+  function confirmButton(btn, label, action){
+    var armed = false, timer = null;
+    function disarm(){
+      clearTimeout(timer);
+      armed = false;
+      btn.textContent = typeof label === "function" ? label() : label;
+      btn.classList.remove("armed");
+    }
+    btn.addEventListener("click", function(){
+      if(!armed){
+        armed = true;
+        btn.textContent = "Tap to confirm";
+        btn.classList.add("armed");
+        timer = setTimeout(disarm, 3000);
+        return;
+      }
+      disarm();
+      action();
+      isSample = false;
+      sampleNote.hidden = true;
+      save(state);
+      buildWeek();
+    });
+  }
+  confirmButton(clearDayBtn, clearDayLabel, function(){
+    if(selectedDay !== -1) state.days[selectedDay] = {in:"",lunchOut:"",lunchIn:"",out:""};
+  });
+  confirmButton(document.getElementById("clearAll"), "Clear all", function(){
+    state.weeks = {};
+    showWeek();
+  });
+
+  render();
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body></html>
